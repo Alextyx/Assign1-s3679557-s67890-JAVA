@@ -19,6 +19,8 @@ public class Point {
     // longitude or y-coordinate
     public double lon = 0;
 
+    public double dist=0.0;
+
 
     /**
      * Empty constructor

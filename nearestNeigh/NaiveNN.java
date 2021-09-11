@@ -1,15 +1,14 @@
 package nearestNeigh;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.PriorityQueue;
+import java.util.stream.Collectors;
 
 /**
  * This class is required to be implemented.  Naive approach implementation.
  */
 public class NaiveNN implements NearestNeigh {
-    private List<Point> data;
+    private List<Point> pointList;
 
     public NaiveNN() {
     }
@@ -17,8 +16,7 @@ public class NaiveNN implements NearestNeigh {
 
     @Override
     public void buildIndex(List<Point> points) {
-        this.data = points;
-
+        this.pointList = points;
     }
 
     @Override
@@ -26,46 +24,43 @@ public class NaiveNN implements NearestNeigh {
         if (k <= 0) {
             throw new IllegalArgumentException("Invalid k: " + k);
         }
-        if (k > data.size()) {
+        if (k > pointList.size()) {
             throw new IllegalArgumentException("k length is larger than the data size");
         }
-        double[] dist = data.stream().parallel().mapToDouble(x -> q.distTo(x)).toArray();
 
-        // use PriorityQueue as MaxHeap to get Top k min point.
-        PriorityQueue<Point> maxHeap = new PriorityQueue<>(k, (p1, p2) -> Double.compare(p2.dist, p1.dist));
-        for (int i = 0; i < k; i++) {
-            Point point = data.get(i);
-            point.dist = dist[i];
-            maxHeap.add(point);
-        }
+        // calculate each point x's distance to q and set it. sort according to dist. and return the sorted List<Point>
+        List<Point> sorted = pointList.stream().parallel().map(x -> x.setDist(q)).sorted().collect(Collectors.toList());
+        List<Point> result = new ArrayList<>();
 
-        for (int i = k; i < dist.length; i++) {
-            if (dist[i] < maxHeap.peek().dist) {
-                maxHeap.poll();
-                Point point = data.get(i);
-                point.dist = dist[i];
-                maxHeap.add(point);
+        // select k nearest neighbour points in q's cat. if not enough neighbour, return what's included. e.g k=10, 6 in cat. return 6.
+        for (int i = 0; i < sorted.size(); i++) {
+            Point p = sorted.get(i);
+            if (p.cat == q.cat) {
+                result.add(p);
+                k--;
             }
+            if (k == 0)
+                break;
         }
-        return new ArrayList<Point>(maxHeap);
+
+        return result;
     }
 
     @Override
     public boolean addPoint(Point point) {
-
-        return false;
+        if (this.pointList.contains(point))
+            return false;
+        return this.pointList.add(point);
     }
 
     @Override
     public boolean deletePoint(Point point) {
-        // To be implemented.
-        return false;
+        return this.pointList.remove(point);
     }
 
     @Override
     public boolean isPointIn(Point point) {
-        // To be implemented.
-        return false;
+        return this.pointList.contains(point);
     }
 
 }

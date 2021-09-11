@@ -11,7 +11,8 @@ public interface NearestNeigh {
 
     /**
      * construct the data structure to store the nodes
-     * @param nodes to be stored
+     *
+     * @param points to be stored
      */
     void buildIndex(List<Point> points);
 

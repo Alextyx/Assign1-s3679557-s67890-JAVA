@@ -1,14 +1,13 @@
 package nearestNeigh;
 
 import java.util.Objects;
+
 import static nearestNeigh.Category.*;
 
 /**
  * Class representing a point in the assignment.
- *
- * 
  */
-public class Point {
+public class Point implements Comparable<Point> {
 
     // identifier
     public String id = null;
@@ -19,8 +18,10 @@ public class Point {
     // longitude or y-coordinate
     public double lon = 0;
 
-    public double dist=0.0;
-
+    // store tmp dist for to query point.
+    public double dist = Double.MAX_VALUE;
+    //
+    public double[] data;
 
     /**
      * Empty constructor
@@ -37,11 +38,13 @@ public class Point {
         this.cat = cat;
         this.lat = lat;
         this.lon = lon;
+        this.data = new double[]{lat, lon};
     }
 
 
     /**
      * Cast String to Category
+     *
      * @param catStr String of a Category
      * @return Category.
      */
@@ -71,16 +74,8 @@ public class Point {
     }
 
     /**
-     * toSring for Point.
-     */
-    @Override
-    public String toString() {
-        return "Point{" + "id=" + id + ", cat=" + cat + ", lat=" + lat + ", lon=" + lon + '}';
-    }
-
-
-    /**
      * cast string to Point, assuming format of toString().
+     *
      * @param str to cast
      * @return Point object
      */
@@ -102,6 +97,24 @@ public class Point {
     }
 
     /**
+     * toSring for Point.
+     */
+//    @Override
+//    public String toString() {
+//        return "Point{" + "id=" + id + ", cat=" + cat + ", lat=" + lat + ", lon=" + lon + '}';
+//    }
+    @Override
+    public String toString() {
+        return "Point{" +
+                "id=" + id +
+                ", cat=" + cat +
+                ", lat=" + lat +
+                ", lon=" + lon +
+                ", dist=" + dist +
+                '}';
+    }
+
+    /**
      * Hashing for point.
      */
     @Override
@@ -116,6 +129,7 @@ public class Point {
 
     /**
      * Equality for a point.
+     *
      * @param obj Object (Point) to compare.
      * @return True if equal, otherwise false.
      */
@@ -149,6 +163,7 @@ public class Point {
     /**
      * Computes the distance between two Points, for nearest neighbour searches.
      * Use this to compute your distances.
+     *
      * @param point Point to compute distance to, from this point object.
      * @return Distance.
      */
@@ -165,6 +180,7 @@ public class Point {
 
     /**
      * Convert degrees to radians.
+     *
      * @param deg Degrees to convert to radians.
      * @return Radians.
      */
@@ -175,11 +191,30 @@ public class Point {
 
     /**
      * Convert randian to degrees.
-     * @param deg Radians to convert to degrees.
+     *
+     * @param rad Radians to convert to degrees.
      * @return Degrees.
      */
     private double rad2deg(double rad) {
         return (rad * 180.0 / Math.PI);
     }
 
+
+    public Point setDist(Point point) {
+        this.dist = this.distTo(point);
+        return this;
+    }
+
+    public double[] toArray() {
+        if (this.data != null)
+            return this.data;
+        else
+            return new double[]{this.lat, this.lon};
+    }
+
+    // add compareTo easy for NaiveNN to sort.
+    @Override
+    public int compareTo(Point point) {
+        return Double.compare(this.dist, point.dist);
+    }
 } // end of class Point

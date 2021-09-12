@@ -29,7 +29,9 @@ public class NaiveNN implements NearestNeigh {
         }
 
         // calculate each point x's distance to q and set it. sort according to dist. and return the sorted List<Point>
-        List<Point> sorted = pointList.stream().parallel().map(x -> x.setDist(q)).sorted().collect(Collectors.toList());
+        List<Point> sorted = pointList.stream()
+                .parallel()
+                .map(x -> x.setDist(q)).sorted().collect(Collectors.toList());
         List<Point> result = new ArrayList<>();
 
         // select k nearest neighbour points in q's cat. if not enough neighbour, return what's included. e.g k=10, 6 in cat. return 6.

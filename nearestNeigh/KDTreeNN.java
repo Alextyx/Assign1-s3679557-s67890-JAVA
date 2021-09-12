@@ -1,9 +1,6 @@
 package nearestNeigh;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.PriorityQueue;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -17,6 +14,7 @@ public class KDTreeNN implements NearestNeigh {
     private int N;
     private List<Point>[] points_sorted;
     private int K;
+    private Set<Point> set = new HashSet<>();
 
     public KDTreeNN() {
     }
@@ -33,15 +31,16 @@ public class KDTreeNN implements NearestNeigh {
                     parallel().
                     sorted((s1, s2) -> Double.compare(s1.lon, s2.lon)).collect(Collectors.toList());
             this.points_sorted = new List[]{sorted_lat, sorted_lon};
+
             root = new Node();
             buildKdTree(root, points_sorted, 0);
         }
     }
 
-    public List<Point>[][] split(List<Point>[] sortedPoints, int cd, Point p) {
+    private List<Point>[][] split(List<Point>[] sortedPoints, int cd, Point p) {
         List<Point> sorted_cd = sortedPoints[cd];
-        List<Point> left = new ArrayList<>();
-        List<Point> right = new ArrayList<>();
+        Set<Point> left = new HashSet<>();
+        Set<Point> right = new HashSet<>();
         // split by p to left and right sets. p not included
         for (Point point : sorted_cd) {
             // median p not included
@@ -74,6 +73,8 @@ public class KDTreeNN implements NearestNeigh {
         node.pointArray = node.point.toArray();
         // update cd
         int next_cd = (cd + 1) % D;
+        // add point to node.
+        set.add(node.point);
 
         List<Point>[][] splited = split(points_sorted, cd, node.point);
         node.child[0] = splited[0][0].size() > 0 ? buildKdTree(new Node(), splited[0], next_cd) : null;
@@ -82,27 +83,43 @@ public class KDTreeNN implements NearestNeigh {
     }
 
     private void search(Node node, Point point, PriorityQueue<Point> heap) {
-        if (node.isLeaf()) {
-            if (node.point.cat == point.cat) {
-                double distance = node.point.distTo(point);
-                node.point.setDist(point);
-                if (!heap.isEmpty() && heap.size() < K)
-                    heap.add(node.point);
-                else {
-                    Point top = heap.peek();
-                    if (distance < top.dist) {
-                        heap.poll();
+        if (node == null)
+            return;
+        {
+            double distance = node.point.distTo(point);
+            node.point.setDist(point);
+            if (node.isLeaf()) {
+                if (node.point.cat == point.cat) {
+                    if (heap.size() < K)
                         heap.add(node.point);
+                    else {
+                        Point top = heap.peek();
+                        if (top != null && distance < top.dist) {
+                            heap.poll();
+                            heap.add(node.point);
+                        }
                     }
                 }
-            }
-        } else {
-            Node near = node.child[node.getCloserChild(point)];
-            search(near, point, heap);
-
-            // look in other half
-            if (heap.peek().distTo(point) != 0) {
-                search(node.child[node.getFurtherChild(point)], point, heap);
+            } else {
+                Node near = node.child[node.getCloserChild(point)];
+                search(near, point, heap);
+                // look in other half
+                Point cur_best = heap.peek();
+                if (cur_best == null || (cur_best != null && cur_best.dist > node.getDistToSplitLine(point))) {
+                    search(node.child[node.getFurtherChild(point)], point, heap);
+                }
+                if (node.point.cat == point.cat) {
+                    // after searching all subtree, if still heap not full, add current node.
+                    if (heap.size() < K)
+                        heap.add(node.point);
+                    else {
+                        // check if this node's dist should be added to heap
+                        if (heap.peek() != null && distance < heap.peek().dist) {
+                            heap.poll();
+                            heap.add(node.point);
+                        }
+                    }
+                }
             }
         }
     }
@@ -110,13 +127,16 @@ public class KDTreeNN implements NearestNeigh {
     @Override
     public boolean addPoint(Point point) {
 
+        if (this.isPointIn(point))
+            return false;
         try {
             this.root = this.root.add(root, point, 0);
-
+            this.set.add(point);
+            return true;
         } catch (IllegalArgumentException e) {
             return false;
         }
-        return true;
+
     }
 
     @Override
@@ -146,14 +166,73 @@ public class KDTreeNN implements NearestNeigh {
 
     @Override
     public boolean deletePoint(Point point) {
-        // To be implemented.
-        return false;
+        if (!isPointIn(point))
+            return false;
+        try {
+            this.root = delete(point, root, 0);
+            this.set.remove(point);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+
     }
 
     @Override
     public boolean isPointIn(Point point) {
-        // To be implemented.
-        return false;
+        return this.set.contains(point);
+    }
+
+
+    public Node delete(Point x, Node t, int cd) {
+        if (t == null)
+            throw new IllegalArgumentException("node is not found");
+        int next_cd = (cd + 1) % D;
+        if (t.point.equals(x)) {
+            // right tree not null, use findMin and swap the node.
+            if (t.child[1] != null) {
+                t.point = findMin(t.child[1], cd, next_cd);
+                t.child[1] = delete(t.point, t.child[1], next_cd);
+            }// left tree not null, use min(cd) from new right
+            else if (t.child[0] != null) {
+                t.point = findMin(t.child[0], cd, next_cd);
+                t.child[1] = delete(t.point, t.child[0], next_cd);
+            } else {
+                // leaf node, remove.
+                t = null;
+            }
+        } else {
+            t.child[t.getCloserChild(x)] =
+                    delete(x, t.child[t.getCloserChild(x)], next_cd);
+        }
+        return t;
+    }
+
+
+    /**
+     * find the minimum value point in given dimension
+     *
+     * @param T   node
+     * @param dim given dimension
+     * @param cd  cutting dimension
+     * @return
+     */
+    public Point findMin(Node T, int dim, int cd) {
+        // empty tree
+        if (T == null)
+            return null;
+        if (cd == dim)
+            if (T.child[0] == null)
+                return T.point;
+            else
+                return findMin(T.child[0], dim, (cd + 1) % D);
+        else {
+            Point l = findMin(T.child[0], dim, (cd + 1) % D);
+            Point r = findMin(T.child[1], dim, (cd + 1) % D);
+            Point result = Node.minPoint(T.point, l, r, dim);
+            return result;
+        }
+
     }
 
     public static class Node {
@@ -170,7 +249,7 @@ public class KDTreeNN implements NearestNeigh {
 
         public Node(Point point, int cuttingDimension) {
             this.child = new Node[2];
-            this.D = this.pointArray.length;
+            this.D = 2;
             this.cd = cuttingDimension;
             this.point = point;
             this.pointArray = point.toArray();
@@ -216,7 +295,7 @@ public class KDTreeNN implements NearestNeigh {
             // a leaf node
             if (t == null)
                 t = new Node(p, cd);
-            else if (p == t.point)
+            else if (p.equals(t.point))
                 throw new IllegalArgumentException("duplicate point");
             else
                 t.child[t.getCloserChild(p)] =
@@ -224,6 +303,15 @@ public class KDTreeNN implements NearestNeigh {
             return t;
         }
 
+        // A utility function to find minimum of three node
+        public static Point minPoint(Point root, Point left, Point right, int d) {
+            Point res = root;
+            if (left != null && left.data[d] < res.data[d])
+                res = left;
+            if (right != null && right.data[d] < res.data[d])
+                res = right;
+            return res;
+        }
 
         /**
          * get the distance from point to splitting line from this node's point

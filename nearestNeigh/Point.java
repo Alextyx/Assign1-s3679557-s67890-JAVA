@@ -190,7 +190,7 @@ public class Point implements Comparable<Point> {
 
 
     /**
-     * Convert randian to degrees.
+     * Convert radians to degrees.
      *
      * @param rad Radians to convert to degrees.
      * @return Degrees.

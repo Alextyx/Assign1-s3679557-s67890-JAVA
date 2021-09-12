@@ -3,6 +3,7 @@ package nearestNeigh;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.stream.Collectors;
 
 /**
@@ -14,8 +15,8 @@ public class KDTreeNN implements NearestNeigh {
     private List<Point> data;
     private int D;
     private int N;
-    private Point[] points;
     private List<Point>[] points_sorted;
+    private int K;
 
     public KDTreeNN() {
     }
@@ -25,7 +26,6 @@ public class KDTreeNN implements NearestNeigh {
         if (points.size() > 0) {
             D = 2;
             this.data = points;
-            this.points = points.stream().parallel().toArray(Point[]::new);
             List<Point> sorted_lat = points.stream().
                     parallel().
                     sorted((s1, s2) -> Double.compare(s1.lat, s2.lat)).collect(Collectors.toList());
@@ -42,6 +42,7 @@ public class KDTreeNN implements NearestNeigh {
         List<Point> sorted_cd = sortedPoints[cd];
         List<Point> left = new ArrayList<>();
         List<Point> right = new ArrayList<>();
+        // split by p to left and right sets. p not included
         for (Point point : sorted_cd) {
             // median p not included
             if (point != p) {
@@ -53,11 +54,11 @@ public class KDTreeNN implements NearestNeigh {
         }
 
         return new List[][]{
-                {
+                {       // sorted list which only in left set, in 0 and 1 cutting dimension
                         sortedPoints[0].stream().filter(x -> left.contains(x)).collect(Collectors.toList()),
                         sortedPoints[1].stream().filter(x -> left.contains(x)).collect(Collectors.toList())
                 },
-                {
+                {       // sorted list which only in right set, in 0 and 1 cutting dimension
                         sortedPoints[0].stream().filter(x -> right.contains(x)).collect(Collectors.toList()),
                         sortedPoints[1].stream().filter(x -> right.contains(x)).collect(Collectors.toList())
                 }
@@ -80,11 +81,38 @@ public class KDTreeNN implements NearestNeigh {
         return node;
     }
 
+    private void search(Node node, Point point, PriorityQueue<Point> heap) {
+        if (node.isLeaf()) {
+            if (node.point.cat == point.cat) {
+                double distance = node.point.distTo(point);
+                node.point.setDist(point);
+                if (!heap.isEmpty() && heap.size() < K)
+                    heap.add(node.point);
+                else {
+                    Point top = heap.peek();
+                    if (distance < top.dist) {
+                        heap.poll();
+                        heap.add(node.point);
+                    }
+                }
+            }
+        } else {
+            Node near = node.child[node.getCloserChild(point)];
+            search(near, point, heap);
+
+            // look in other half
+            if (heap.peek().distTo(point) != 0) {
+                search(node.child[node.getFurtherChild(point)], point, heap);
+            }
+        }
+    }
+
     @Override
     public boolean addPoint(Point point) {
 
         try {
             this.root = this.root.add(root, point, 0);
+
         } catch (IllegalArgumentException e) {
             return false;
         }
@@ -92,9 +120,40 @@ public class KDTreeNN implements NearestNeigh {
     }
 
     @Override
-    public List<Point> search(Point searchTerm, int k) {
+    public List<Point> search(Point q, int k) {
+
+        if (k <= 0) {
+            throw new IllegalArgumentException("Invalid k: " + k);
+        }
+        if (k > data.size()) {
+            throw new IllegalArgumentException("k length is larger than the data size");
+        }
+        K = k;
+        // use PriorityQueue as MaxHeap to get Top k min point.
+        PriorityQueue<Point> maxHeap = new PriorityQueue<>(k, (p1, p2) -> Double.compare(p2.dist, p1.dist));
+
+        search(root, q, maxHeap);
+
+        List<Point> result = new ArrayList<>();
+        while (!maxHeap.isEmpty()) {
+            result.add(0, maxHeap.poll());
+        }
+
+        return result;
+
+    }
+
+
+    @Override
+    public boolean deletePoint(Point point) {
         // To be implemented.
-        return new ArrayList<Point>();
+        return false;
+    }
+
+    @Override
+    public boolean isPointIn(Point point) {
+        // To be implemented.
+        return false;
     }
 
     public static class Node {
@@ -103,10 +162,10 @@ public class KDTreeNN implements NearestNeigh {
         int cd;
         // node array. Node[0] is lower node, Node[1] is upper node.
         Node[] child;
-        // double array to store point data [lat, lon]
-        int D;
-        double[] pointArray;
         // total dimension. for this program is len(point)=2.
+        int D;
+        // double array to store point data [lat, lon]
+        double[] pointArray;
 
 
         public Node(Point point, int cuttingDimension) {
@@ -135,6 +194,16 @@ public class KDTreeNN implements NearestNeigh {
                 return 0;
         }
 
+        // get the further node to the query point depending on current node's cutting dimension.
+        public int getFurtherChild(Point point) {
+            if (point.data[this.cd] >= this.pointArray[this.cd])
+                // got low node
+                return 0;
+            else
+                // got upper node
+                return 1;
+        }
+
         /**
          * insert a point p at node t
          *
@@ -155,28 +224,36 @@ public class KDTreeNN implements NearestNeigh {
             return t;
         }
 
+
+        /**
+         * get the distance from point to splitting line from this node's point
+         *
+         * @param p
+         * @return
+         */
+        public double getDistToSplitLine(Point p) {
+            Point splitLine = new Point();
+            int cd = this.cd;
+            if (cd == 0) {
+                splitLine.lat = this.point.lat;
+                splitLine.lon = p.lon;
+            } else {
+                splitLine.lat = p.lat;
+                splitLine.lon = this.point.lon;
+            }
+            return p.distTo(splitLine);
+        }
+
         @Override
         public String toString() {
             return "Node{" +
-                    ", cd=" + cd +
+                    "cd=" + cd +
                     ", pointArray=" + Arrays.toString(pointArray) +
                     ", D=" + D +
                     ", point=" + point +
-                    "child=" + Arrays.toString(child) +
+                    ", child=" + Arrays.toString(child) +
                     '}';
         }
-    }
-
-    @Override
-    public boolean deletePoint(Point point) {
-        // To be implemented.
-        return false;
-    }
-
-    @Override
-    public boolean isPointIn(Point point) {
-        // To be implemented.
-        return false;
     }
 
 }

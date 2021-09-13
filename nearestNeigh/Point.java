@@ -99,20 +99,20 @@ public class Point implements Comparable<Point> {
     /**
      * toSring for Point.
      */
-//    @Override
-//    public String toString() {
-//        return "Point{" + "id=" + id + ", cat=" + cat + ", lat=" + lat + ", lon=" + lon + '}';
-//    }
     @Override
     public String toString() {
-        return "Point{" +
-                "id=" + id +
-                ", cat=" + cat +
-                ", lat=" + lat +
-                ", lon=" + lon +
-                ", dist=" + dist +
-                '}';
+        return "Point{" + "id=" + id + ", cat=" + cat + ", lat=" + lat + ", lon=" + lon + '}';
     }
+//    @Override
+//    public String toString() {
+//        return "Point{" +
+//                "id=" + id +
+//                ", cat=" + cat +
+//                ", lat=" + lat +
+//                ", lon=" + lon +
+//                ", dist=" + dist +
+//                '}';
+//    }
 
     /**
      * Hashing for point.

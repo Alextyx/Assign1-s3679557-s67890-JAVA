@@ -88,7 +88,7 @@ public class NearestNeighFileBasedForTiming {
             agent.buildIndex(points);
             Instant buildEnd = Instant.now();
             timeElapsed = Duration.between(buildStart, buildEnd).toMillis();
-            pw.printf("Build Finished in {%d} ms %n", timeElapsed);
+            pw.printf("Build finished in {%d} ms %n", timeElapsed);
         } catch (FileNotFoundException e) {
             System.err.println("Data file doesn't exist.");
             usage(progName);
@@ -128,7 +128,7 @@ public class NearestNeighFileBasedForTiming {
                         List<Point> searchResult = agent.search(point, k);
                         Instant searchEnd = Instant.now();
                         timeElapsed = Duration.between(searchStart, searchEnd).toMillis();
-                        pw.printf("Search Finished in {%d} ms %n", timeElapsed);
+                        pw.printf("Search finished in {%d} ms %n", timeElapsed);
                         for (Point writePoint : searchResult) {
                             writer.println(writePoint.toString());
                         }
@@ -146,7 +146,7 @@ public class NearestNeighFileBasedForTiming {
                         }
                         Instant addEnd = Instant.now();
                         timeElapsed = Duration.between(addStart, addEnd).toMillis();
-                        pw.printf("Add Finished in {%d} ms %n", timeElapsed);
+                        pw.printf("Add finished in {%d} ms %n", timeElapsed);
                         break;
                     // delete
                     case "D":
@@ -161,7 +161,7 @@ public class NearestNeighFileBasedForTiming {
                         }
                         Instant deleteEnd = Instant.now();
                         timeElapsed = Duration.between(deleteStart, deleteEnd).toMillis();
-                        pw.printf("Delete Finished in {%d} ms %n", timeElapsed);
+                        pw.printf("Delete finished in {%d} ms %n", timeElapsed);
                         break;
                     // check
                     case "C":
@@ -182,13 +182,11 @@ public class NearestNeighFileBasedForTiming {
 
             Instant finish = Instant.now();
             timeElapsed = Duration.between(start, finish).toMillis();
-            pw.printf("Finished in %d ms %n", timeElapsed);
+            pw.printf("All finished in %d ms %n", timeElapsed);
             pw.close();
         } catch (FileNotFoundException e) {
             System.err.println("output file doesn't exist.");
             usage(progName);
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 }
